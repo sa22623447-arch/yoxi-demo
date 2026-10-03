@@ -189,6 +189,29 @@ function processMsg(input,pending,hasTrip){
 
 
 // ─── SVG 路線地圖 ────────────────────────────────────────────────────────────
+// ─── 旅行完成畫面 ─────────────────────────────────────────────────────────────
+function TripCompleteOverlay({ onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2800);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,#12182b,#1e3050)",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,borderRadius:"inherit"}}>
+      <div style={{fontSize:56,animation:"bounce 0.6s ease infinite"}}>🎉</div>
+      <div style={{color:"#fff",fontSize:20,fontWeight:700}}>旅行完成！</div>
+      <div style={{color:"rgba(255,255,255,0.6)",fontSize:13,textAlign:"center",lineHeight:1.7}}>
+        感謝使用 yoxi 智慧旅伴 AI<br/>下次出遊再見！
+      </div>
+      <div style={{marginTop:8,display:"flex",gap:6}}>
+        {[0,0.15,0.3].map((d,i)=>(
+          <div key={i} style={{width:8,height:8,borderRadius:"50%",background:"#e63329",opacity:0.8,animation:`pulse 1s ${d}s ease infinite`}}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function RouteMap({ items, allSpots }) {
   const spots = items.map(it=>allSpots.find(s=>s.id===it.spot)).filter(Boolean);
   return (
@@ -266,7 +289,7 @@ function TimelineItem({ item, spot, nextSpot, nextFare, isLast, onBook, index })
   );
 }
 
-function ItineraryCanvas({ tripTemplate, allSpots, selDay, onSelDay, onBook, onShare, onArrange, onConfirmDays, onToggleEdit, onRemoveFromTrip, pendingActivities, onRemovePending, waitingForDays, editMode }) {
+function ItineraryCanvas({ tripTemplate, allSpots, selDay, onSelDay, onBook, onShare, onArrange, onComplete, onConfirmDays, onToggleEdit, onRemoveFromTrip, pendingActivities, onRemovePending, waitingForDays, editMode }) {
   const hasPending=(pendingActivities||[]).length>0;
   const hasTrip=!!tripTemplate;
 
@@ -347,6 +370,10 @@ function ItineraryCanvas({ tripTemplate, allSpots, selDay, onSelDay, onBook, onS
         {!editMode&&<button onClick={onArrange}
           style={{padding:"9px 10px",background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0",borderRadius:9,fontSize:10,cursor:"pointer",flexShrink:0,fontWeight:600}}>
           🔄 重排
+        </button>}
+        {!editMode&&<button onClick={onComplete}
+          style={{padding:"9px 10px",background:"#f8fafc",color:"#64748b",border:"1px solid #e2e8f0",borderRadius:9,fontSize:10,cursor:"pointer",flexShrink:0,fontWeight:500}}>
+          ✅ 完成旅行
         </button>}
         <button onClick={onShare}
           style={{padding:"9px 10px",background:"#f8fafc",color:"#e63329",border:"1px solid #fca5a5",borderRadius:9,fontSize:11,cursor:"pointer",flexShrink:0}}>
@@ -853,6 +880,7 @@ function App() {
   const [typing, setTyping] = useState(false);
   const chatRef = useRef(null);
   const [showShare, setShowShare] = useState(false);
+  const [showComplete, setShowComplete] = useState(false);
 
   // 叫車流程（保留自 App14）
   const [booking, setBooking] = useState(null);
@@ -956,7 +984,24 @@ function App() {
     // 若尚未生成，靜默（上方狀態 1 自動更新）
   };
 
-    const handleBook = (spot) => {
+    const handleCompleteTrip = () => {
+    setShowComplete(true);
+  };
+  const resetAll = () => {
+    setShowComplete(false);
+    setPendingActivities([]);
+    setCustomTrip(null);
+    setTripGenerated(false);
+    setTripDays(1);
+    setSelDay(0);
+    setWaitingForDays(false);
+    setEditMode(false);
+    setShowShare(false);
+    setMsgs(INIT_MSGS);
+    setInput("");
+  };
+
+  const handleBook = (spot) => {
     // 把 ACTS 的欄位名稱對應到 BookingSheet 需要的格式
     const bookingSpot = {
       ...spot,
@@ -1048,6 +1093,7 @@ function App() {
               </div>
             </div>
 
+            {showComplete && <TripCompleteOverlay onDone={resetAll} />}
             {/* 主體內容 */}
             {(
               <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
@@ -1062,6 +1108,7 @@ function App() {
                   pendingActivities={pendingActivities}
                   onRemovePending={handleRemovePending}
                   onArrange={() => sendMsg("排好了")}
+                  onComplete={handleCompleteTrip}
                   onConfirmDays={handleConfirmDays}
                   onToggleEdit={handleToggleEdit}
                   onRemoveFromTrip={(spotId,dayIdx)=>handleRemoveFromTrip(spotId,dayIdx)}
